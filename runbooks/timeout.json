@@ -1,0 +1,8 @@
+{
+  "title": "Airflow task timeout",
+  "steps": [
+    "Compare the task's configured execution timeout with the attempt duration.",
+    "Identify the last operation logged before the timeout.",
+    "Compare with recent successful attempts to check whether input volume, query duration, or waiting on a dependency changed."
+  ]
+}

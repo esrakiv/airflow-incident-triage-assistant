@@ -1,0 +1,128 @@
+{
+  "dag_id": "etl_failure_lab",
+  "run_id": "manual__2026-11-23T16:52:30.028461+00:00",
+  "failed_task_count": 3,
+  "tasks": [
+    {
+      "task_id": "load_customers",
+      "attempt": 1,
+      "map_index": -1,
+      "status": "diagnosed",
+      "category": "schema_mismatch",
+      "likely_cause": "The SQL references a column missing from the target schema.",
+      "evidence": {
+        "line": 10,
+        "text": "OperationalError: no such column: loyalty_tier"
+      },
+      "next_check": "Inspect the target table columns and compare them with the failing SQL.",
+      "retrieved_sections": [
+        {
+          "source": "runbooks/sections.json#sql-missing-column",
+          "title": "Column missing from target SQL schema",
+          "matched_signals": [
+            "no such column"
+          ],
+          "steps": [
+            "Inspect the columns of the actual target table used by the failing query.",
+            "Compare them with the expected schema and check for a missing migration or renamed column."
+          ]
+        }
+      ],
+      "llm_input": {
+        "task": "load_customers",
+        "diagnosis": "schema_mismatch",
+        "evidence": "OperationalError: no such column: loyalty_tier",
+        "next_check": "Inspect the target table columns and compare them with the failing SQL.",
+        "finding": "The SQL references a column missing from the target schema.",
+        "cause_limit": null
+      }
+    },
+    {
+      "task_id": "list_raw_events",
+      "attempt": 1,
+      "map_index": -1,
+      "status": "diagnosed",
+      "category": "permission_error",
+      "likely_cause": "The task identity was denied access to the requested operation.",
+      "evidence": {
+        "line": 10,
+        "text": "PermissionError: AccessDenied: lab-reader cannot list demo raw events"
+      },
+      "next_check": "Check the task identity and which permission the attempted operation requires.",
+      "retrieved_sections": [
+        {
+          "source": "runbooks/sections.json#task-resource-access",
+          "title": "Task identity denied access to a resource",
+          "matched_signals": [
+            "accessdenied",
+            "permissionerror"
+          ],
+          "steps": [
+            "Confirm the actual identity, resource and operation in the failure.",
+            "Compare the requested operation with the permissions assigned to that identity."
+          ]
+        }
+      ],
+      "llm_input": {
+        "task": "list_raw_events",
+        "diagnosis": "permission_error",
+        "evidence": "PermissionError: AccessDenied: lab-reader cannot list demo raw events",
+        "next_check": "Check the task identity and which permission the attempted operation requires.",
+        "finding": "The task identity was denied access to the requested operation.",
+        "cause_limit": null
+      }
+    },
+    {
+      "task_id": "rebuild_fact_sessions",
+      "attempt": 1,
+      "map_index": -1,
+      "status": "diagnosed",
+      "category": "timeout",
+      "likely_cause": "The task exceeded its Airflow execution timeout.",
+      "evidence": {
+        "line": 11,
+        "text": "AirflowTaskTimeout: Timeout, PID: 11768"
+      },
+      "next_check": "Compare task duration with its execution timeout and inspect where it stalled.",
+      "cause_limit": "The log confirms the timeout. It does not establish why the task stalled.",
+      "retrieved_sections": [
+        {
+          "source": "runbooks/sections.json#task-execution-timeout",
+          "title": "Airflow task exceeded its execution timeout",
+          "matched_signals": [
+            "airflowtasktimeout"
+          ],
+          "steps": [
+            "Check the last recorded operation and compare the attempt duration with the configured limit.",
+            "Use the workload logs or metrics to determine why the operation stalled."
+          ],
+          "reference": {
+            "title": "Apache Airflow 3.4.0 — Tasks / Timeouts",
+            "url": "https://airflow.apache.org/docs/apache-airflow/3.4.0/core-concepts/tasks.html#timeouts",
+            "summary": "The execution_timeout setting limits the runtime of each task attempt. Airflow raises AirflowTaskTimeout when the attempt exceeds that limit."
+          }
+        }
+      ],
+      "llm_input": {
+        "task": "rebuild_fact_sessions",
+        "diagnosis": "timeout",
+        "evidence": "AirflowTaskTimeout: Timeout, PID: 11768",
+        "next_check": "Compare task duration with its execution timeout and inspect where it stalled.",
+        "finding": "The task exceeded its Airflow execution timeout.",
+        "cause_limit": "The log confirms the timeout. It does not establish why the task stalled."
+      }
+    }
+  ],
+  "blocked_task_count": 1,
+  "blocked_tasks": [
+    {
+      "task_id": "publish_customer_report",
+      "map_index": -1,
+      "state": "upstream_failed",
+      "candidate_failed_upstream_task_ids": [
+        "load_customers"
+      ]
+    }
+  ],
+  "dependency_source": "current_dag_definition"
+}

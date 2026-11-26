@@ -1,0 +1,8 @@
+{
+  "title": "Airflow task instance stopped sending heartbeats",
+  "steps": [
+    "Match the scheduler event to the DAG, run and task affected.",
+    "Check worker logs and infrastructure events at the same timestamp for restarts, evictions or out-of-memory kills.",
+    "If the worker appears healthy, review task heartbeat frequency and the scheduler's heartbeat timeout settings."
+  ]
+}

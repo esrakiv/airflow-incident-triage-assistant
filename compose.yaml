@@ -1,0 +1,15 @@
+services:
+  airflow:
+    build: .
+    command: standalone
+    ports:
+      - "127.0.0.1:8088:8080"
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    volumes:
+      - airflow-state:/opt/airflow
+      - ./dags:/opt/airflow/dags:ro
+      - ${JAFFLE_SHOP_DIR:-${HOME}/jaffle_shop_duckdb}:/opt/jaffle-shop:ro
+
+volumes:
+  airflow-state:

@@ -1,0 +1,75 @@
+{
+  "dag_id": "source_freshness_lab",
+  "run_id": "manual__freshness_validation_20261126T071043309962Z",
+  "failed_task_count": 1,
+  "tasks": [
+    {
+      "task_id": "check_orders_freshness",
+      "attempt": 1,
+      "map_index": -1,
+      "status": "diagnosed",
+      "category": "source_freshness",
+      "likely_cause": "The latest source record is older than the configured freshness limit.",
+      "evidence": {
+        "line": 9,
+        "text": "DataFreshnessError: raw_orders is stale: latest updated_at is 2026-11-26T04:10:45.677896+00:00, 180 minutes old; freshness limit is 60 minutes."
+      },
+      "next_check": "Check the latest source timestamp and the last successful upstream ingestion.",
+      "cause_limit": "The check confirms stale data. The evidence does not explain why newer records are missing.",
+      "runbook": {
+        "source": "runbooks/source_freshness.json",
+        "title": "Source records exceed the freshness limit",
+        "steps": [
+          "Compare the latest source record timestamp with the check time and the configured freshness limit.",
+          "Find the last successful upstream ingestion and compare its source watermark with the latest timestamp in the target table.",
+          "Keep the downstream publication blocked until the feed is fresh and the check passes."
+        ]
+      },
+      "retrieved_sections": [
+        {
+          "source": "runbooks/sections.json#source-freshness-limit-exceeded",
+          "title": "Source data is older than the freshness limit",
+          "matched_signals": [
+            "datafreshnesserror",
+            "freshness limit"
+          ],
+          "steps": [
+            "Verify the latest record timestamp and whether it uses the expected timezone and column.",
+            "Compare that timestamp with the source watermark and the last successful upstream ingestion to locate the lag."
+          ]
+        }
+      ],
+      "llm_input": {
+        "task": "check_orders_freshness",
+        "diagnosis": "source_freshness",
+        "evidence": "DataFreshnessError: raw_orders is stale: latest updated_at is 2026-11-26T04:10:45.677896+00:00, 180 minutes old; freshness limit is 60 minutes.",
+        "next_check": "Check the latest source timestamp and the last successful upstream ingestion.",
+        "finding": "The latest source record is older than the configured freshness limit.",
+        "cause_limit": "The check confirms stale data. The evidence does not explain why newer records are missing.",
+        "retrieved_context": [
+          {
+            "title": "Source data is older than the freshness limit",
+            "summary": null,
+            "steps": [
+              "Verify the latest record timestamp and whether it uses the expected timezone and column.",
+              "Compare that timestamp with the source watermark and the last successful upstream ingestion to locate the lag."
+            ]
+          }
+        ]
+      },
+      "llm_summary": "What happened: raw_orders is stale – the newest record is 180 minutes old, exceeding the 60-minute freshness limit.\nWhat is uncertain: the reason newer records are missing is unknown.\nFirst check: verify the latest source timestamp and compare it with the source watermark and the last successful upstream ingestion."
+    }
+  ],
+  "blocked_task_count": 1,
+  "blocked_tasks": [
+    {
+      "task_id": "publish_orders_dashboard",
+      "map_index": -1,
+      "state": "upstream_failed",
+      "candidate_failed_upstream_task_ids": [
+        "check_orders_freshness"
+      ]
+    }
+  ],
+  "dependency_source": "current_dag_definition"
+}

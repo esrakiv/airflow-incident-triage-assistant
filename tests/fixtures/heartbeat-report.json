@@ -1,0 +1,53 @@
+{
+  "dag_id": "airflow_heartbeat_timeout_lab",
+  "run_id": "manual__2026-11-24T22:05:05.209117+00:00",
+  "failed_task_count": 1,
+  "tasks": [
+    {
+      "task_id": "wait_for_heartbeat_timeout",
+      "attempt": 1,
+      "map_index": -1,
+      "status": "diagnosed",
+      "category": "heartbeat_timeout",
+      "likely_cause": "The Airflow scheduler detected a task attempt that stopped sending heartbeats.",
+      "evidence": {
+        "source": "airflow_event_log",
+        "event_log_id": 8,
+        "when": "2026-11-24T22:05:11.803411Z",
+        "text": "Task did not emit heartbeat within time limit (2 seconds) and will be terminated. See https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/tasks.html#task-instance-heartbeat-timeout"
+      },
+      "next_check": "Check the worker and scheduler logs at the failure timestamp for restarts or resource exhaustion.",
+      "cause_limit": "The scheduler detected a missed heartbeat. The evidence does not identify why it stopped.",
+      "retrieved_sections": [
+        {
+          "source": "runbooks/sections.json#task-instance-heartbeat-timeout",
+          "title": "Airflow scheduler detected a missed task heartbeat",
+          "matched_signals": [
+            "heartbeat timeout"
+          ],
+          "steps": [
+            "Locate the affected task instance in the scheduler event.",
+            "Correlate the timestamp with worker and infrastructure logs to find why the heartbeat stopped."
+          ],
+          "reference": {
+            "title": "Apache Airflow 3.4.0 — Task Instance Heartbeat Timeout",
+            "url": "https://airflow.apache.org/docs/apache-airflow/3.4.0/core-concepts/tasks.html#task-instance-heartbeat-timeout",
+            "summary": "Airflow monitors task instance heartbeats and can fail or retry an attempt when its heartbeat stops."
+          }
+        }
+      ],
+      "task_log_status": "insufficient_evidence",
+      "llm_input": {
+        "task": "wait_for_heartbeat_timeout",
+        "diagnosis": "heartbeat_timeout",
+        "evidence": "Task did not emit heartbeat within time limit (2 seconds) and will be terminated. See https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/tasks.html#task-instance-heartbeat-timeout",
+        "next_check": "Check the worker and scheduler logs at the failure timestamp for restarts or resource exhaustion.",
+        "finding": "The Airflow scheduler detected a task attempt that stopped sending heartbeats.",
+        "cause_limit": "The scheduler detected a missed heartbeat. The evidence does not identify why it stopped."
+      }
+    }
+  ],
+  "blocked_task_count": 0,
+  "blocked_tasks": [],
+  "dependency_source": "not_needed"
+}

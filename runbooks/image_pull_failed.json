@@ -1,0 +1,7 @@
+{
+  "title": "Container image could not be pulled",
+  "steps": [
+    "Inspect pod events for the registry's exact error and the requested image reference.",
+    "If the registry reports that the image was not found, verify its repository and tag. If it reports an authorization error, check registry credentials."
+  ]
+}

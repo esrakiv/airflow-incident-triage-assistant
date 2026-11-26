@@ -1,0 +1,8 @@
+{
+  "title": "Task operation denied",
+  "steps": [
+    "Identify the exact operation and resource from the exception.",
+    "Verify which identity the task used at runtime.",
+    "Compare the operation and resource with the identity's policy, including any explicit deny or resource restriction."
+  ]
+}

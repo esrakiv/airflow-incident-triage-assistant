@@ -1,0 +1,2 @@
+{"event": "Checking freshness for the synthetic raw_orders source."}
+{"event": "Task failed with exception", "error_detail": [{"exc_type": "DataFreshnessError", "exc_value": "raw_orders is stale: latest updated_at is 2026-11-26T04:10:45.677896+00:00, 180 minutes old; freshness limit is 60 minutes."}]}

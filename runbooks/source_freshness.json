@@ -1,0 +1,8 @@
+{
+  "title": "Source records exceed the freshness limit",
+  "steps": [
+    "Compare the latest source record timestamp with the check time and the configured freshness limit.",
+    "Find the last successful upstream ingestion and compare its source watermark with the latest timestamp in the target table.",
+    "Keep the downstream publication blocked until the feed is fresh and the check passes."
+  ]
+}

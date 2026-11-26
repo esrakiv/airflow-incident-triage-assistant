@@ -1,0 +1,8 @@
+{
+  "title": "Missing column in SQL",
+  "steps": [
+    "Find the failing SQL and identify which table or alias owns the missing column.",
+    "Inspect the actual columns in the same database and schema used by the task. For SQLite, use PRAGMA table_info on the relevant table.",
+    "Compare the actual schema with the expected model or migration. Check for a rename, an unapplied migration, or a query pointing at the wrong relation."
+  ]
+}

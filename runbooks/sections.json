@@ -1,0 +1,84 @@
+[
+  {
+    "id": "image-reference-not-found",
+    "title": "Container image reference not found",
+    "signals": ["failed to pull image", "image cannot be pulled", "manifest unknown", "not found"],
+    "steps": [
+      "Compare the full image reference in the pod event with the configured registry, repository and tag.",
+      "Check whether that exact reference exists and is visible to the task's registry identity."
+    ]
+  },
+  {
+    "id": "image-registry-authentication",
+    "title": "Container registry rejected image pull credentials",
+    "signals": ["failed to pull image", "image cannot be pulled", "unauthorized", "authentication required", "pull access denied", "imagepullsecret"],
+    "steps": [
+      "Identify the registry that rejected the request.",
+      "Check the pod's image pull secret references and the registry account's pull permissions."
+    ]
+  },
+  {
+    "id": "image-registry-connectivity",
+    "title": "Container registry connectivity failed",
+    "signals": ["failed to pull image", "image cannot be pulled", "i/o timeout", "tls handshake timeout", "no such host", "connection refused"],
+    "steps": [
+      "Use the pod event to identify the registry endpoint and the failing DNS, TCP or TLS step.",
+      "Check connectivity from the node pulling the image."
+    ]
+  },
+  {
+    "id": "sql-missing-column",
+    "title": "Column missing from target SQL schema",
+    "signals": ["no such column", "undefinedcolumn", "column does not exist"],
+    "steps": [
+      "Inspect the columns of the actual target table used by the failing query.",
+      "Compare them with the expected schema and check for a missing migration or renamed column."
+    ]
+  },
+  {
+    "id": "task-resource-access",
+    "title": "Task identity denied access to a resource",
+    "signals": ["permissionerror", "accessdenied", "permission denied"],
+    "steps": [
+      "Confirm the actual identity, resource and operation in the failure.",
+      "Compare the requested operation with the permissions assigned to that identity."
+    ]
+  },
+  {
+    "id": "task-execution-timeout",
+    "title": "Airflow task exceeded its execution timeout",
+    "signals": ["airflowtasktimeout", "execution timeout"],
+    "reference": {
+      "title": "Apache Airflow 3.4.0 — Tasks / Timeouts",
+      "url": "https://airflow.apache.org/docs/apache-airflow/3.4.0/core-concepts/tasks.html#timeouts",
+      "summary": "The execution_timeout setting limits the runtime of each task attempt. Airflow raises AirflowTaskTimeout when the attempt exceeds that limit."
+    },
+    "steps": [
+      "Check the last recorded operation and compare the attempt duration with the configured limit.",
+      "Use the workload logs or metrics to determine why the operation stalled."
+    ]
+  },
+  {
+    "id": "source-freshness-limit-exceeded",
+    "title": "Source data is older than the freshness limit",
+    "signals": ["datafreshnesserror", "freshness limit"],
+    "steps": [
+      "Verify the latest record timestamp and whether it uses the expected timezone and column.",
+      "Compare that timestamp with the source watermark and the last successful upstream ingestion to locate the lag."
+    ]
+  },
+  {
+    "id": "task-instance-heartbeat-timeout",
+    "title": "Airflow scheduler detected a missed task heartbeat",
+    "signals": ["detected a task instance without a heartbeat", "task did not emit heartbeat within time limit", "heartbeat timeout"],
+    "reference": {
+      "title": "Apache Airflow 3.4.0 — Task Instance Heartbeat Timeout",
+      "url": "https://airflow.apache.org/docs/apache-airflow/3.4.0/core-concepts/tasks.html#task-instance-heartbeat-timeout",
+      "summary": "Airflow monitors task instance heartbeats and can fail or retry an attempt when its heartbeat stops."
+    },
+    "steps": [
+      "Locate the affected task instance in the scheduler event.",
+      "Correlate the timestamp with worker and infrastructure logs to find why the heartbeat stopped."
+    ]
+  }
+]
