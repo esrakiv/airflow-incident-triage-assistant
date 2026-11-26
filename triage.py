@@ -17,10 +17,11 @@ from urllib.parse import quote
 from airflow_logs import (
     LAB_URL,
     LAB_URLS,
+    airflow_base,
+    configured_airflow_url,
     download_task_log,
     fetch_log_content,
     find_heartbeat_event,
-    lab_origin,
     list_failed_runs,
     list_task_dependencies,
     list_task_instances,
@@ -245,7 +246,7 @@ def upstream_failure_candidates(
 
 def diagnose_run(run_url: str, include_runbook: bool, retrieve: bool = False) -> dict:
     dag_id, run_id = parse_run_url(run_url)
-    return diagnose_run_by_id(lab_origin(run_url), dag_id, run_id, include_runbook, retrieve)
+    return diagnose_run_by_id(airflow_base(run_url), dag_id, run_id, include_runbook, retrieve)
 
 
 def diagnose_run_by_id(
@@ -432,10 +433,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("log_file", type=Path, nargs="?", help="Path to one task attempt log")
-    source.add_argument("--airflow-task", metavar="URL", help="Logs URL from the local Airflow lab")
-    source.add_argument("--airflow-run", metavar="URL", help="DAG run URL from the local Airflow lab")
+    source.add_argument("--airflow-task", metavar="URL", help="Airflow task Logs URL")
+    source.add_argument("--airflow-run", metavar="URL", help="Airflow DAG run URL")
     source.add_argument("--scan-failed", action="store_true", help="Find and diagnose recently failed Airflow runs")
-    parser.add_argument("--airflow-url", choices=LAB_URLS, help=f"Lab address for --scan-failed (default: {LAB_URL})")
+    parser.add_argument("--airflow-url", help=f"Base URL for --scan-failed (default: AIRFLOW_TRIAGE_URL or {LAB_URL})")
     parser.add_argument("--hours", type=int, help="Lookback for --scan-failed (default: 24)")
     parser.add_argument("--watch-seconds", type=int, help="Repeat --scan-failed after this many seconds")
     parser.add_argument("--state-db", type=Path, help="Watch report database (default: logs/triage-watch.sqlite3)")
@@ -461,13 +462,17 @@ def main() -> None:
         parser.error("--watch-seconds must be at least 1")
     try:
         if args.scan_failed:
+            selected_url = (args.airflow_url or configured_airflow_url() or LAB_URL).rstrip("/")
+            origin = airflow_base(selected_url)
+            if origin != selected_url:
+                raise ValueError("--airflow-url requires an Airflow base URL rather than a run or task URL.")
             if args.watch_seconds is not None:
                 watch_failed_runs(
-                    args.airflow_url or LAB_URL, args.hours or 24, args.runbook, args.retrieve,
+                    origin, args.hours or 24, args.runbook, args.retrieve,
                     args.watch_seconds, args.state_db or Path("logs/triage-watch.sqlite3"),
                 )
                 return
-            result = scan_failed_runs(args.airflow_url or LAB_URL, args.hours or 24, args.runbook, args.retrieve)
+            result = scan_failed_runs(origin, args.hours or 24, args.runbook, args.retrieve)
         elif args.airflow_run:
             result = diagnose_run(args.airflow_run, args.runbook, args.retrieve)
 
@@ -487,6 +492,8 @@ def main() -> None:
             if args.airflow_task:
                 attempt = 1 if args.attempt is None else args.attempt
                 if args.kubernetes:
+                    if airflow_base(args.airflow_task) not in LAB_URLS:
+                        raise ValueError("--kubernetes is only supported by the local Docker Desktop lab.")
                     dag_id, run_id, task_id = parse_task_url(args.airflow_task)
                     if attempt < 1:
                         raise ValueError("The attempt number must be at least 1.")

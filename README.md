@@ -2,7 +2,7 @@
 
 An Airflow incident triage CLI that connects task failures to log evidence, blocked downstream tasks, and relevant runbooks. It can also generate an English model summary for a selected failed task.
 
-The demo uses synthetic data. The CLI reads from the local Airflow labs and supplies findings for an operator to review.
+The demo uses synthetic data. The CLI can also analyze your saved task logs or connect to your own Airflow 3 instance. It supplies findings for an operator to review.
 
 ## Quick start
 
@@ -13,7 +13,7 @@ python3 triage.py tests/fixtures/source-freshness.log --runbook --retrieve
 python3 -m unittest discover -s tests
 ```
 
-The first command reports `source_freshness`. The newest `raw_orders` record is **180 minutes old** against a **60-minute limit**. The retrieved runbook points to the source timestamp, ingestion watermark, and last successful load. The second command checks how the CLI handles truncated model responses and HTTP 429. Both commands run without Airflow, Docker, or an API key.
+The first command reports `source_freshness`. The newest `raw_orders` record is **180 minutes old** against a **60-minute limit**. The retrieved runbook points to the source timestamp, ingestion watermark, and last successful load. The second command checks Airflow connection configuration and how the CLI handles truncated model responses and HTTP 429. Both commands run without Airflow, Docker, or an API key.
 
 The [captured Airflow report](examples/source-freshness-report.json) shows the same incident in a full DAG run, including the blocked dashboard task and an English model summary.
 
@@ -53,6 +53,30 @@ python3 triage.py --airflow-run "$RUN_URL" --runbook --retrieve \
 ```
 
 The request sends the selected task's evidence and retrieved runbook context to OpenRouter. Use synthetic or redacted logs for model calls. The lab uses a fixed free-tier model ID whose availability depends on OpenRouter. If a complete response is unavailable, `llm_summary` is `null` and the evidence and runbook remain in the report. Stop the lab with `docker compose down`.
+
+## Use your own Airflow
+
+For any Airflow deployment, you can start by downloading one task attempt log and passing the file to the CLI. Recognition depends on the error signatures in the local rule set. Unknown failures can return `insufficient_evidence`.
+
+```sh
+python3 triage.py /path/to/task-attempt.log --runbook --retrieve
+```
+
+For direct access, use an Airflow 3 instance reachable from your machine and a bearer token authorized to read DAG runs, task instances, task logs, and event logs. Obtain the token through your deployment's authentication manager. The direct API workflows were developed against Airflow 3.4.0.
+
+In Bash or zsh, set the Airflow base URL and enter the token without echoing it. If Airflow is served under a path such as `/airflow`, include that path in the base URL.
+
+```sh
+export AIRFLOW_TRIAGE_URL='https://airflow.example.org/airflow'
+printf 'Airflow API token: '
+read -rs AIRFLOW_TRIAGE_TOKEN
+printf '\n'
+export AIRFLOW_TRIAGE_TOKEN
+
+python3 triage.py --scan-failed --hours 24 --runbook --retrieve
+```
+
+To inspect a specific failure, copy the **DAG run** URL from your instance and run `python3 triage.py --airflow-run "$RUN_URL" --runbook --retrieve` after setting `RUN_URL` to that link. The configured token is used only for requests under the configured base URL. Replace it in your environment when it expires. The Docker Desktop Kubernetes evidence collector is specific to the local lab.
 
 ## Additional lab scenarios
 
@@ -131,7 +155,9 @@ python3 triage.py '/path/to/task-attempt.log' --runbook
 
 ### Read a log directly from Airflow
 
-Open a task instance's **Logs** tab, copy its browser URL, and pass it to `--airflow-task`. Enter the local Airflow admin password at the terminal prompt. The client authenticates with the lab at `localhost:8088` and reads only the requested task log.
+For an unmapped task, open its **Logs** tab, copy the browser URL, and pass it to `--airflow-task`. Enter the local Airflow admin password at the terminal prompt. The client authenticates with the lab at `localhost:8088` and reads the requested attempt log.
+
+For a dynamically mapped task, use [the DAG run command](#diagnose-all-failures-in-a-dag-run). The single-task command ignores the URL's `map_index` and requests the unmapped log (`map_index=-1`). To inspect a specific mapped attempt on its own, download that instance's log from Airflow and run the saved-log command above.
 
 The CLI caches the lab access token in `~/.cache/airflow-incident-triage/localhost-8088.token` with owner-only file permissions. It asks for the password on the first API call and when Airflow rejects the cached token as unauthorized. The password is never saved.
 
@@ -178,8 +204,10 @@ Expect `category: heartbeat_timeout` and the official heartbeat reference. The s
 Copy the URL of a completed DAG run from Airflow. The command lists task instances, selects those in the `failed` state, and reads their latest reported attempts. The report contains one entry for each failed instance, including mapped task instances. If a log cannot be read, its entry shows `log_unavailable`.
 
 ```sh
-python3 triage.py --airflow-run '<DAG run URL>' --runbook
+python3 triage.py --airflow-run '<DAG run URL>' --runbook --retrieve
 ```
+
+For mapped tasks, use `task_id` and `map_index` together to identify the failed instance in `tasks`. For example, two rows with `task_id: process_partition` and map indexes `2` and `5` refer to different instances. Each row shows the inspected `attempt`. The `--llm-summary TASK_ID` option requires a unique failed task entry, so it cannot pick a map index when several failed instances share that task ID.
 
 The report also lists `upstream_failed` tasks separately. Failed ancestor candidates are traced through blocked tasks using the current DAG definition. Check the historical graph when the DAG has changed since the run. Candidates are task IDs, so they do not resolve dependencies between individual mapped instances or between DAG runs.
 
@@ -187,7 +215,7 @@ An empty or inaccessible log is reported as `log_unavailable`. An available log 
 
 ### Discover failed runs automatically
 
-Run a one-time scan from the repo terminal. The default scans the last 24 hours on port 8088:
+Run a one-time scan from the repo terminal. The default scans the last 24 hours against `AIRFLOW_TRIAGE_URL` when configured, or the lab on port 8088:
 
 ```sh
 python3 triage.py --scan-failed --runbook --retrieve

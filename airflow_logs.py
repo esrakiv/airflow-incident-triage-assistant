@@ -1,4 +1,4 @@
-"""Read runs, task logs and events from the local Airflow API."""
+"""Read runs, task logs and events from Airflow's public API."""
 
 from __future__ import annotations
 
@@ -20,12 +20,43 @@ RUN_PATH = re.compile(r"/dags/([^/]+)/runs/([^/]+)/?")
 TOKEN_CACHE_DIR = Path.home() / ".cache" / "airflow-incident-triage"
 
 
-def lab_origin(url: str) -> str:
+def configured_airflow_url() -> str | None:
+    value = os.environ.get("AIRFLOW_TRIAGE_URL", "").strip().rstrip("/")
+    if not value:
+        return None
+    parsed = urlsplit(value)
+    loopback = parsed.hostname in {"localhost", "127.0.0.1", "::1"}
+    if (
+        not parsed.hostname
+        or (parsed.scheme != "https" and not (parsed.scheme == "http" and loopback))
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or any(segment in {".", ".."} for segment in unquote(parsed.path).split("/"))
+    ):
+        raise ValueError("AIRFLOW_TRIAGE_URL must be an HTTPS base URL or an HTTP loopback URL, without credentials or query parameters.")
+    return value
+
+
+def airflow_base(url: str) -> str:
     parsed = urlsplit(url)
     origin = f"{parsed.scheme}://{parsed.netloc}"
-    if origin not in LAB_URLS:
-        raise ValueError("Use the local Airflow lab at localhost:8088 or localhost:8090.")
-    return origin
+    configured = configured_airflow_url()
+    if configured:
+        base = urlsplit(configured)
+        if (parsed.scheme, parsed.netloc) == (base.scheme, base.netloc) and (
+            parsed.path == base.path or parsed.path.startswith(f"{base.path}/")
+        ):
+            return configured
+    if origin in LAB_URLS:
+        return origin
+    raise ValueError("Use a local lab URL or set AIRFLOW_TRIAGE_URL to the base URL of your Airflow instance.")
+
+
+def airflow_path(url: str) -> str:
+    base_path = urlsplit(airflow_base(url)).path
+    return urlsplit(url).path[len(base_path):]
 
 
 class RejectRedirects(HTTPRedirectHandler):
@@ -78,7 +109,13 @@ def get_with_token(url: str, token: str) -> dict:
 
 
 def authenticated_get(url: str) -> dict:
-    origin = lab_origin(url)
+    origin = airflow_base(url)
+    if origin == configured_airflow_url():
+        token = os.environ.get("AIRFLOW_TRIAGE_TOKEN", "").strip()
+        if not token:
+            raise ValueError("Set AIRFLOW_TRIAGE_TOKEN to an API token for AIRFLOW_TRIAGE_URL.")
+        return get_with_token(url, token)
+
     cache_path = TOKEN_CACHE_DIR / f"localhost-{urlsplit(origin).port}.token"
     try:
         token = cache_path.read_text(encoding="utf-8").strip()
@@ -112,9 +149,7 @@ def fetch_log_content(
 
 
 def parse_task_url(task_url: str) -> tuple[str, str, str]:
-    lab_origin(task_url)
-    url = urlsplit(task_url)
-    task = TASK_PATH.fullmatch(url.path)
+    task = TASK_PATH.fullmatch(airflow_path(task_url))
     if task is None:
         raise ValueError("Use an Airflow task Logs URL that includes its DAG run.")
     dag, run, task_id = map(unquote, task.groups())
@@ -125,7 +160,7 @@ def download_task_log(task_url: str, attempt: int) -> str:
     dag, run, task_id = parse_task_url(task_url)
     if attempt < 1:
         raise ValueError("The attempt number must be at least 1.")
-    return fetch_log_content(task_instances_url(dag, run, lab_origin(task_url)), task_id, attempt)
+    return fetch_log_content(task_instances_url(dag, run, airflow_base(task_url)), task_id, attempt)
 
 
 def task_instances_url(dag_id: str, run_id: str, origin: str = LAB_URL) -> str:
@@ -134,9 +169,7 @@ def task_instances_url(dag_id: str, run_id: str, origin: str = LAB_URL) -> str:
 
 
 def parse_run_url(run_url: str) -> tuple[str, str]:
-    lab_origin(run_url)
-    url = urlsplit(run_url)
-    run = RUN_PATH.fullmatch(url.path)
+    run = RUN_PATH.fullmatch(airflow_path(run_url))
     if run is None:
         raise ValueError("Use an Airflow DAG run URL ending after the run ID.")
     dag_id, run_id = map(unquote, run.groups())
